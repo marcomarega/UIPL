@@ -11,10 +11,10 @@ from UserInterfafce import SCROLL_SHIFT
 class ScreenElement(pygame.Surface):
     def __init__(self, parent_screen, rect, extra_style=None):
         super(ScreenElement, self).__init__(rect.size, pygame.SRCALPHA, 32)
-        self.extra_style = extra_style
-        self.parent_screen = parent_screen
+        self._extra_style = extra_style
+        self._parent_screen = parent_screen
         self.rect = rect
-        self.showing = True
+        self.__showing = True
 
     def move(self, dx, dy):
         self.rect.x += dx
@@ -22,29 +22,32 @@ class ScreenElement(pygame.Surface):
         return self
 
     def show(self):
-        self.showing = True
+        self.__showing = True
         return self
 
     def hide(self):
-        self.showing = False
+        self.__showing = False
         return self
 
-    def push_event(self, event):
-        if not self.showing:
+    def _push_event(self, event):
+        if not self.__showing:
             return False
-        return self.event_processing(pygame.event.Event(deepcopy(event.type), deepcopy(event.dict)))
+        return self.event_process(pygame.event.Event(deepcopy(event.type), deepcopy(event.dict)))
 
-    def event_processing(self, event):
+    def event_process(self, event):
         return False
 
-    def draw(self, tick):
-        if not self.showing:
+    def _draw(self, tick):
+        if not self.__showing:
             return False
-        self.fill((0, 0, 0, 0))
+        self.draw_process(tick)
         return True
 
+    def draw_process(self, tick):
+        pass
+
     def get_mouse_pos(self):
-        pos = self.parent_screen.get_mouse_pos()
+        pos = self._parent_screen.get_mouse_pos()
         return pos[0] - self.rect.x, pos[1] - self.rect.y
 
 
@@ -52,147 +55,135 @@ class Button(ScreenElement):
     def __init__(self, parent_screen: Screen, rect: pygame.Rect, text="", extra_style=None):
         super(Button, self).__init__(parent_screen, rect, extra_style)
 
-        self.text = text
-        self.is_pressed = False
-        self.args = list()
-        self.functions = list()
+        self.__text = text
+        self.__is_pressed = False
+        self.__args = list()
+        self.__functions = list()
 
-    def event_processing(self, event):
+    def event_process(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
             if self.rect.collidepoint(*event.pos):
-                self.is_pressed = True
+                self.__is_pressed = True
                 return True
 
         if event.type == pygame.MOUSEBUTTONUP and event.button == pygame.BUTTON_LEFT:
-            if self.is_pressed and self.rect.collidepoint(*event.pos):
-                for func in self.functions:
-                    func(*self.args)
-                self.is_pressed = False
+            if self.__is_pressed and self.rect.collidepoint(*event.pos):
+                for func in self.__functions:
+                    func(*self.__args)
+                self.__is_pressed = False
                 return True
-            self.is_pressed = False
+            self.__is_pressed = False
 
-    def draw(self, tick):
-        if self.extra_style is not None:
-            style = self.extra_style
+    def draw_process(self, tick):
+        if self._extra_style is not None:
+            style = self._extra_style
         else:
-            style = self.parent_screen.theme.data["button"]
+            style = self._parent_screen.get_theme().data["button"]
         d_color = style.d_color
         if style.background_color is not None:
-            if self.is_pressed:
+            if self.__is_pressed:
                 self.fill((max(0, style.background_color[0] - d_color),
                            max(0, style.background_color[1] - d_color),
                            max(0, style.background_color[2] - d_color)))
             else:
                 self.fill(style.background_color)
         font = pygame.font.Font(None, style.font_size)
-        text = font.render(self.text, True, style.main_color)
+        text = font.render(self.__text, True, style.main_color)
         self.blit(text, ((self.get_width() - text.get_width()) // 2, (self.get_height() - text.get_height()) // 2))
-        if self.showing:
-            self.parent_screen.blit(self, (self.rect.x, self.rect.y))
-        return True
-
-    def add_args(self, *args):
-        self.args.extend(args)
-        return self
+        if self.__showing:
+            self._parent_screen.blit(self, (self.rect.x, self.rect.y))
 
     def connect(self, function):
-        self.functions.append(function)
+        self.__functions.append(function)
         return self
 
     def get_text(self):
-        return self.text
+        return self.__text
 
     def set_text(self, new_text):
-        self.text = new_text
+        self.__text = new_text
 
 
 class TextPlain(ScreenElement):
     def __init__(self, parent_screen: Screen, rect: pygame.Rect, text, extra_style=None):
         super(TextPlain, self).__init__(parent_screen, rect, extra_style)
-        self.text = text
+        self.__text = text
 
     def set_text(self, text):
-        self.text = text
+        self.__text = text
 
     def get_text(self):
-        return self.text
+        return self.__text
 
-    def draw(self, tick):
-        if not super(TextPlain, self).draw(tick):
-            return False
-        if self.extra_style is not None:
-            style = self.extra_style
+    def draw_process(self, tick):
+        if self._extra_style is not None:
+            style = self._extra_style
         else:
-            style = self.parent_screen.theme.data["text"]
+            style = self._parent_screen.get_theme().data["text"]
         font = pygame.font.Font(None, style.font_size)
-        text = font.render(self.text, True, style.main_color)
+        text = font.render(self.__text, True, style.main_color)
         if style.background_color is not None:
             self.fill(style.background_color)
         self.blit(text,
                   ((self.get_width() - text.get_width()) // 2,
                    (self.get_height() - text.get_height()) // 2))
-        self.parent_screen.blit(self, self.rect.topleft)
+        self._parent_screen.blit(self, self.rect.topleft)
 
 
 class ImagePlain(ScreenElement):
     def __init__(self, parent_screen, rect, image, extra_style=None):
         super(ImagePlain, self).__init__(parent_screen, rect, extra_style)
-        self.image = image
+        self.__image = image
 
     def set_image(self, image):
-        self.image = image
+        self.__image = image
 
-    def draw(self, tick):
-        if not super(ImagePlain, self).draw(tick):
-            return False
+    def draw_process(self, tick):
         self.fill((0, 0, 0, 0))
-        self.blit(self.image, (0, 0,))
-        self.parent_screen.blit(self, self.rect.topleft)
-        return True
+        self.blit(self.__image, (0, 0,))
+        self._parent_screen.blit(self, self.rect.topleft)
 
 
 class EditText(ScreenElement):
     def __init__(self, parent_screen, rect, text="", extra_style=None):
         super(EditText, self).__init__(parent_screen, rect, extra_style)
-        self.selected = False
-        self.text = text
-        self.functions = list()
+        self.__selected = False
+        self.__text = text
+        self.__functions = list()
 
     def connect_text_handler(self, functon):
-        self.functions.append(functon)
+        self.__functions.append(functon)
         return self
 
     def set_text(self, text):
-        self.text = text
+        self.__text = text
         return self
 
     def get_text(self):
-        return self.text
+        return self.__text
 
-    def event_processing(self, event):
+    def event_process(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(event.pos):
-            self.selected = True
+            self.__selected = True
             return True
         if event.type == pygame.MOUSEBUTTONDOWN and not self.rect.collidepoint(event.pos):
-            self.selected = False
-        if self.selected and event.type == pygame.KEYDOWN:
+            self.__selected = False
+        if self.__selected and event.type == pygame.KEYDOWN:
             if event.key == pygame.K_RETURN:
-                for function in self.functions:
-                    function(self.text)
+                for function in self.__functions:
+                    function(self.__text)
             elif event.key == pygame.K_BACKSPACE:
-                self.text = self.text[0:-1]
+                self.__text = self.__text[0:-1]
             elif event.unicode.upper() in string.ascii_letters:
-                self.text += event.unicode.upper()
+                self.__text += event.unicode.upper()
             return True
 
-    def draw(self, tick):
-        if not super(EditText, self).draw(tick):
-            return False
-        if self.extra_style is not None:
-            style = self.extra_style
+    def draw_process(self, tick):
+        if self._extra_style is not None:
+            style = self._extra_style
         else:
-            style = self.parent_screen.theme.data["edit_text"]
-        if self.selected:
+            style = self._parent_screen.get_theme().data["edit_text"]
+        if self.__selected:
             main_color = style.main_color
             background_color = style.background_color
         else:
@@ -206,7 +197,7 @@ class EditText(ScreenElement):
             else:
                 background_color = None
         font = pygame.font.Font(None, style.font_size)
-        text = font.render(self.text, True, main_color)
+        text = font.render(self.__text, True, main_color)
         if background_color is not None:
             self.fill(background_color)
         pygame.draw.rect(self, main_color, (0, 0, *self.get_size()), 3)
@@ -214,92 +205,85 @@ class EditText(ScreenElement):
             self.blit(text, (3, 3))
         else:
             self.blit(text, (self.get_width() - text.get_width() - 6, 3))
-        self.parent_screen.blit(self, self.rect.topleft)
-        return True
+        self._parent_screen.blit(self, self.rect.topleft)
 
 
 class ScrollArea(ScreenElement):
     def __init__(self, parent_screen, rect, extra_theme=None):
         super(ScrollArea, self).__init__(parent_screen, rect, None)
         if extra_theme is None:
-            self.theme = self.parent_screen.theme
+            self.__theme = self._parent_screen.get_theme()
         else:
-            self.theme = extra_theme
-        self.elements = list()
-        self.dy = 0
-        self.lower_y = 0
+            self.__theme = extra_theme
+        self.__elements = list()
+        self.__dy = 0
+        self.__lower_y = 0
 
     def add_element(self, element):
-        self.elements.append(element)
-        self.lower_y = max(self.lower_y, element.rect.bottom)
+        self.__elements.append(element)
+        self.__lower_y = max(self.__lower_y, element.rect.bottom)
         return self
 
-    def event_processing(self, event):
-        if event.type == pygame.MOUSEWHEEL and self.rect.collidepoint(self.parent_screen.get_mouse_pos()):
-            self.dy += event.y * SCROLL_SHIFT
-            if self.dy > 0:
-                for element in self.elements:
-                    element.move(0, event.y * SCROLL_SHIFT - self.dy)
-                self.lower_y += event.y * SCROLL_SHIFT - self.dy
-                self.dy = 0
+    def event_process(self, event):
+        if event.type == pygame.MOUSEWHEEL and self.rect.collidepoint(self._parent_screen.get_mouse_pos()):
+            self.__dy += event.y * SCROLL_SHIFT
+            if self.__dy > 0:
+                for element in self.__elements:
+                    element.move(0, event.y * SCROLL_SHIFT - self.__dy)
+                self.__lower_y += event.y * SCROLL_SHIFT - self.__dy
+                self.__dy = 0
             else:
-                for element in self.elements:
+                for element in self.__elements:
                     element.move(0, event.y * SCROLL_SHIFT)
-                self.lower_y += event.y * SCROLL_SHIFT
-            if self.lower_y < 10:
-                for element in self.elements:
-                    element.move(0, 10 - self.lower_y)
-                self.dy += 10 - self.lower_y
-                self.lower_y = 10
+                self.__lower_y += event.y * SCROLL_SHIFT
+            if self.__lower_y < 10:
+                for element in self.__elements:
+                    element.move(0, 10 - self.__lower_y)
+                self.__dy += 10 - self.__lower_y
+                self.__lower_y = 10
         if hasattr(event, "pos"):
             event.pos = (event.pos[0] - self.rect.x, event.pos[1] - self.rect.y)
-        for element in self.elements:
-            element.push_event(event)
+        for element in self.__elements:
+            element._push_event(event)
 
-    def draw(self, tick):
-        if not super(ScrollArea, self).draw(tick):
-            return False
-        if self.theme.data["scroll_area_background"] is not None:
-            self.blit(self.theme.data["scroll_area_background"], (0, 0))
-        for element in self.elements:
-            element.draw(tick)
-        self.parent_screen.blit(self, self.rect.topleft)
-        return True
+    def draw_process(self, tick):
+        if self.__theme.data["scroll_area_background"] is not None:
+            self.blit(self.__theme.data["scroll_area_background"], (0, 0))
+        for element in self.__elements:
+            element._draw(tick)
+        self._parent_screen.blit(self, self.rect.topleft)
     
     
 class ScreenKeeper(ScreenElement):
     def __init__(self, parent_screen, rect, extra_theme=None):
         super(ScreenKeeper, self).__init__(parent_screen, rect, None)
         if extra_theme is not None:
-            self.theme = extra_theme
+            self.__theme = extra_theme
         else:
-            self.theme = self.parent_screen.theme
-        self.intent = Intent(self)
-        self.current_screen = None
+            self.__theme = self._parent_screen.get_theme()
+        self.__intent = Intent(self)
+        self.__current_screen = None
 
     def set_current_screen(self, screen_class, *args):
-        self.current_screen = screen_class(self, self.intent, self.parent_screen.file_base, *args)
+        self.__current_screen = screen_class(self, self.__intent, self._parent_screen.file_base, *args)
         return self
 
     def push_intent(self):
-        self.current_screen = self.intent.get_screen(self)
+        self.__current_screen = self.__intent.get_screen(self)
 
     def get_parent_screen(self):
-        return self.parent_screen
+        return self._parent_screen
 
-    def draw(self, tick):
-        if not super(ScreenKeeper, self).draw(tick):
-            return False
-        self.current_screen.draw(tick)
-        self.parent_screen.blit(self.current_screen, self.rect.topleft)
-        return True
+    def draw_process(self, tick):
+        self.__current_screen._draw(tick)
+        self._parent_screen.blit(self.__current_screen, self.rect.topleft)
 
-    def event_processing(self, event):
+    def event_process(self, event):
         if hasattr(event, "pos"):
             event.pos = (event.pos[0] - self.rect.x, event.pos[1] - self.rect.y)
-        if self.current_screen is None:
+        if self.__current_screen is None:
             return self
-        return self.current_screen.push_event(event)
+        return self.__current_screen._push_event(event)
 
     def push_event_to_parent_screen(self, event):
-        self.parent_screen.push_event(event)
+        self._parent_screen._push_event(event)

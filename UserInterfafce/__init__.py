@@ -35,9 +35,9 @@ def run(start_screen, theme=day_theme):
             if event.type == pygame.QUIT:
                 running = False
             else:
-                cur_screen.push_event(event)
+                cur_screen._push_event(event)
         display.fill((0, 0, 0))
-        cur_screen.draw(clock.tick(FPS))
+        cur_screen._draw(clock.tick(FPS))
         pygame.display.flip()
 
 SCROLL_SHIFT = 25

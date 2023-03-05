@@ -7,34 +7,41 @@ from UserInterfafce import display
 class Screen(pygame.Surface):
     def __init__(self, display, intent, theme):
         super(Screen, self).__init__(display.get_size(), pygame.SRCALPHA, 32)
-        self.display = display
-        self.intent = intent
-        self.theme = theme
-        self.theme_src = theme
-        self.elements = list()
+        self.__display = display
+        self.__intent = intent
+        self.__theme = theme
+        self.__theme_src = theme
+        self.__elements = list()
 
-    def draw(self, tick):
-        self.fill((0, 0, 0, 0))
-        self.blit(self.theme.data["background"], (0, 0))
-        for element in self.elements:
-            element.draw(tick)
-        self.display.blit(self, (0, 0))
-
-    def push_event(self, event):
-        for element in self.elements[::-1]:
-            if element.push_event(event):
-                return True
-
-    def add_element(self, element):
-        self.elements.append(element)
+    def get_theme(self):
+        return self.__theme
 
     def set_theme(self, theme):
-        self.theme.data = theme.data
+        self.__theme.data = theme.data
+
+    def _draw(self, tick):
+        self.fill((0, 0, 0, 0))
+        self.blit(self.__theme.data["background"], (0, 0))
+        for element in self.__elements:
+            element._draw(tick)
+        self.__display.blit(self, (0, 0))
+
+    def _push_event(self, event):
+        self.event_process(event)
+        for element in self.__elements[::-1]:
+            if element._push_event(event):
+                return True
+
+    def event_process(self, event):
+        pass
+
+    def add_element(self, element):
+        self.__elements.append(element)
 
     def set_intent(self, intent: Intent):
-        self.intent = intent
+        self.__intent = intent
 
     def get_mouse_pos(self):
-        if self.display == display:
+        if self.__display == display:
             return pygame.mouse.get_pos()
-        return self.display.get_mouse_pos()
+        return self.__display.get_mouse_pos()
